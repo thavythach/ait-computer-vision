@@ -286,7 +286,7 @@ SobelX(void)
         }
       }
       Pixel(x,y) = *val;
-      Pixel(x,y).Clamp();
+      // Pixel(x,y).Clamp();
     }
   }
 }
@@ -310,7 +310,7 @@ SobelY(void)
         }
       }
       Pixel(x,y) = *val;
-      Pixel(x,y).Clamp();
+      // Pixel(x,y).Clamp();
     }
   }
 }
@@ -351,33 +351,32 @@ Blur(double sigma)
   int cWidth = sigma * 3; // 3 one ach side
   double kernel[size];
 
-  std::cout << size;
+  // std::cout << size;
 
   double weights = 0.0;
   for (int i=-cWidth; i<=cWidth; i++){
     int idx = i + cWidth;
     kernel[idx] = exp( -(i*i)/sigma*sigma*2 / (M_PI * sigma*sigma*2) );
-    std::cout << kernel[idx] << "\n";
+    // std::cout << kernel[idx] << "\n";
     weights += kernel[idx];
   }
 
-  std::cout << "\n Total Weights: " << weights;
+  // std::cout << "\n Total Weights: " << weights;
 
   // normalize the kernel
   double kernel_sum = 0.0;
   for (int i=0; i<size; i++){
     kernel[i] /= weights;
-    std :: cout << kernel[i] << "\n";
+    // std :: cout << kernel[i] << "\n";
     
     kernel_sum += kernel[i];
   }
 
-  std::cout << kernel_sum;
+  // std::cout << kernel_sum;
 
   /* separable linear filters */
 
   // y - direction
-  int s=1;
   for (int y=cWidth; y < height-cWidth; y++){
     for (int x=0; x < width; x++){
       
@@ -389,11 +388,9 @@ Blur(double sigma)
         // printf("%d -%d\n",x,y);
       }
       tempImage.Pixel(x,y) = *val;
-      tempImage.Pixel(x,y).Clamp();
+      // tempImage.Pixel(x,y).Clamp();
     }
   }
-
-  printf("swag");
 
   // x - direction
   for (int y=0; y < height; y++){
@@ -406,28 +403,57 @@ Blur(double sigma)
         *val += tempImage.Pixel(x+lx, y) * kernel[lx + cWidth];
       }
       Pixel(x,y) = *val;
-      Pixel(x,y).Clamp();
+      // Pixel(x,y).Clamp();
     }
   }
-
-    printf("swag");
-
-
-  
-
-  
-  fprintf(stderr, "Blur(%g) not implemented\n", sigma);
 }
 
 
 void R2Image::
 Harris(double sigma)
 {
-    // Harris corner detector. Make use of the previously developed filters, such as the Gaussian blur filter
-	// Output should be 50% grey at flat regions, white at corners and black/dark near edges
+  // Harris corner detector. Make use of the previously developed filters, such as the Gaussian blur filter
+  // Output should be 50% grey at flat regions, white at corners and black/dark near edges
   
-  // FILL IN IMPLEMENTATION HERE (REMOVE PRINT STATEMENT WHEN DONE)
-  fprintf(stderr, "Harris(%g) not implemented\n", sigma);
+  R2Image solX(*this);
+  solX.SobelX();
+  R2Image solY(*this);
+  solY.SobelY();
+  
+  R2Image Ix_sq(*this);
+  R2Image Iy_sq(*this);
+  R2Image Ix_Iy(*this);
+
+  
+  for (int x=0; x <width; x++){
+    for (int y=0; y<height; y++){
+      Ix_sq.Pixel(x,y) = solX.Pixel(x,y) * solX.Pixel(x,y);
+      Iy_sq.Pixel(x,y) = solY.Pixel(x,y) * solY.Pixel(x,y);
+      Ix_Iy.Pixel(x,y) = solX.Pixel(x,y) * solY.Pixel(x,y);
+    }
+  }
+
+  Ix_sq.Blur( sigma );
+  Iy_sq.Blur( sigma );
+  Ix_Iy.Blur( sigma );
+  
+  double alpha = 0.04;
+  
+  for (int x=0; x < width; x++){
+    for (int y=0; y<height; y++){
+      // printf("x: %d, y: %d!\n", x,y);
+      Pixel(x,y) = 
+      Ix_sq.Pixel( x,y ) * Iy_sq.Pixel( x,y ) - 
+      Ix_Iy.Pixel( x,y ) * Ix_Iy.Pixel (x,y ) - 
+      alpha *
+      (
+        ( Ix_sq.Pixel (x,y ) + Iy_sq.Pixel( x,y ) ) * 
+        ( Ix_sq.Pixel( x,y ) + Iy_sq.Pixel( x,y ) )
+      );
+      Pixel(x,y).Clamp();    
+    }
+  }
+
 }
 
 
