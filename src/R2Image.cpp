@@ -432,17 +432,13 @@ Harris(double sigma)
   this->Grayscale();
   printf("Grayscale Completed!\n");
   
-  printf("Creating 5 Temporary Images (solX, solY, Ix_sq, Iy_sq, Ix_Iy) based off original image.\n");  
-  R2Image solX(*this);
-  R2Image solY(*this);
+  printf("Creating 3 Temporary Images (solX, solY, Ix_sq, Iy_sq, Ix_Iy) based off original image.\n");  
   R2Image Ix_sq(*this);
+  Ix_sq.SobelX();
   R2Image Iy_sq(*this);
+  Iy_sq.SobelY();
   R2Image Ix_Iy(*this);
-
-  printf("solX temp image -> sobelX() initialized!\n");
-  solX.SobelX();
-  printf("solY temp image -> sobelY() initialized!\n");
-  solY.SobelY();
+  Ix_Iy.SobelX();
 
   printf("Finished creating 5 Temporary Images\n");
   
@@ -451,9 +447,9 @@ Harris(double sigma)
   printf("Populating three temporary images (Ix_sq, Iy_sq, Ix_Iy) using temp images that were sobeled (solX, solY)\n");
   for (int x=0; x <width; x++){
     for (int y=0; y<height; y++){
-      Ix_sq.Pixel(x,y) = solX.Pixel(x,y) * solX.Pixel(x,y);
-      Iy_sq.Pixel(x,y) = solY.Pixel(x,y) * solY.Pixel(x,y);
-      Ix_Iy.Pixel(x,y) = solX.Pixel(x,y) * solY.Pixel(x,y);
+      Ix_sq.Pixel(x,y) *= Ix_sq.Pixel(x,y);
+      Ix_Iy.Pixel(x,y) *= Iy_sq.Pixel(x,y);
+      Iy_sq.Pixel(x,y) *= Iy_sq.Pixel(x,y);
     }
   }
   printf("Populating Finished.\n");
@@ -463,13 +459,11 @@ Harris(double sigma)
   Iy_sq.Blur( sigma );
   Ix_Iy.Blur( sigma );
   printf("Blur using sigma: %f completed!\n", sigma);
-  
+
   printf("Initialized three temporary variables: alpha, detected, rmax!\n");
   printf("alpha");
   double alpha = 0.04;
-  printf("alpha passed");
   double detected[width][height];
-  printf("sw");
   double rmax = 0.0;
   printf("Initialization Successful - alpha set to (%f), detected to empty 2D array, rmax set to (%f)!\n", alpha, rmax);
 
@@ -487,41 +481,57 @@ Harris(double sigma)
       )
       + R2Pixel(0.5,0.5,0.5,1); // 0.5 to normalize and see the gray values
       ;
-
+      detected[x][y] = Pixel(x,y).Red(); // if you have grayscale it, all the rgb values are the same
+      
       if ( Pixel(x,y).Red() > rmax){
         rmax = Pixel(x,y).Red();
-        detected[x][y] = Pixel(x,y).Red(); // if you have grayscale it, all the rgb values are the same
       }
 
       Pixel(x,y).Clamp();    
     }
   }
-  
-  printf("Finish computing the Harris Value, rmax, and detected 2D array");
 
+  printf("Finish computing the Harris Value, rmax, and detected 2D array");
+  
   printf("Begin Bruteforcing # of threshold beginning at 1.0 and ends at 0.0 every 0.10 decrementation.\n");
-  for (double threshold = 1.0; threshold >= 0.0; threshold -= 0.01){
-    int i=0;
+
+
+  int features_to_find = 150;
+  int i=0;
+  for (double threshold = 1.0; i != 150 && threshold >= 0.0; threshold -= 0.01){
     for (int x=0; x < width; x++){
       for (int y=0; y < height; y++){
-        if (detected[x][y] > threshold * rmax //&&
-          // detected[x][y] > detected[x-1][y-1] &&
-          // detected[x][y] > detected[x-1][y+1] &&
-          // detected[x][y] > detected[x+1][y-1] &&
-          // detected[x][y] > detected[x+1][y+1]
+        if (detected[x][y] >= threshold * rmax &&
+          detected[x][y] > detected[x-1][y-1] &&
+          detected[x][y] > detected[x-1][y+1] &&
+          detected[x][y] > detected[x+1][y-1] &&
+          detected[x][y] > detected[x+1][y+1]
         ){
-          // printf("(feature %d) swag.... @ x=%d, y=%d\n",i, x,y);
-            //  detected[x][y] = 1.0;
-            Pixel(x,y) = R2Pixel(1,0,0,1);
-            
-            i++;
+          i++;                                  
+          for (int lx = -10; lx <= 10; lx++){
+            for (int ly = -10; ly <= 10; ly++){
+              int xCoord = std::max(0, std::min(x +lx, width-1));
+              int yCoord = std::max(0, std::min(y +ly, height-1));
+              detected[xCoord][yCoord] = 0;
+              
+              int radius = (ly*ly) + (lx*lx);
+              if (radius <= 18 && radius >= 8){
+                Pixel(xCoord,yCoord) = R2Pixel(1,0,0,1);
+              }
+            }
           }
-      }
+          
+          
+        }
+        if (i==features_to_find){
+            break;
+        }
     }
-    if (i > 50){
-      printf("(At most 50): Found (%d) features for %f%% \n",i, threshold);
-    }
+    
   }
+  printf("Found (%d) features for %.2f-- \n",i, threshold);
+  }
+  
 
   printf("Bruteforce Completed!\n");
   
