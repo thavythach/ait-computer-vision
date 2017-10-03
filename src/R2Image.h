@@ -73,6 +73,7 @@ class R2Image {
   void Blur(double sigma);
   void Harris(double sigma);
   void Sharpen(void);
+  void Grayscale();
 
   // further operations
   void blendOtherImageTranslated(R2Image * otherImage);
