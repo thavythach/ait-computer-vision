@@ -1,11 +1,11 @@
 This directory contains skeleton code as a starting point for the Computer Vision HW. 
 
-
+wfsadf
 FILE STRUCTURE
 ==============
 
 There are several files, but you should mainly change src/R2Image.cpp.
-
+sadfasdf
   src/ - Directory with source code
     Makefile - Unix/Mac makefile for building the project with "make". 
     imagepro.[vcproj/sln/suo] - Project file for Visual Studio 2005 on Windows
@@ -19,7 +19,7 @@ There are several files, but you should mainly change src/R2Image.cpp.
   runme.bat - a script (for Windows) that you will fill in to demonstrate execution of your program
   runme.sh - same as <code>runme.bat, but for Mac OS X
 
-COMPILATION
+COMPILATfdfdION
 ===========
 
 If you are developing on a Windows machine and have Visual Studio
