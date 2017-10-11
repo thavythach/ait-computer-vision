@@ -422,7 +422,7 @@ Grayscale()
   }
 }
 
-void R2Image::
+int* R2Image::
 Harris(double sigma)
 {
   // Harris corner detector. Make use of the previously developed filters, such as the Gaussian blur filter
@@ -466,7 +466,8 @@ Harris(double sigma)
   double detected[width][height];
   double rmax = 0.0;
   printf("Initialization Successful - alpha set to (%f), detected to empty 2D array, rmax set to (%f)!\n", alpha, rmax);
-
+  static int features[300]; 
+  
   printf("Begin computing the Harris Value and populate both rmax and detected 2D array!\n");
   for (int x=0; x < width; x++){
     for (int y=0; y < height; y++){
@@ -490,7 +491,7 @@ Harris(double sigma)
       Pixel(x,y).Clamp();    
     }
   }
-
+  
   printf("Finish computing the Harris Value, rmax, and detected 2D array");
   
   printf("Begin Bruteforcing # of threshold beginning at 1.0 and ends at 0.0 every 0.10 decrementation.\n");
@@ -498,6 +499,7 @@ Harris(double sigma)
 
   int features_to_find = 150;
   int i=0;
+  int ft=0;
   for (double threshold = 1.0; i != 150 && threshold >= 0.0; threshold -= 0.01){
     for (int x=0; x < width; x++){
       for (int y=0; y < height; y++){
@@ -507,6 +509,10 @@ Harris(double sigma)
           detected[x][y] > detected[x+1][y-1] &&
           detected[x][y] > detected[x+1][y+1]
         ){
+          features[ft] = x;
+          features[ft+1] = y;
+          // printf("%f\n",features[i].Red());
+          ft+=2;
           i++;                                  
           for (int lx = -10; lx <= 10; lx++){
             for (int ly = -10; ly <= 10; ly++){
@@ -534,7 +540,7 @@ Harris(double sigma)
   
 
   printf("Bruteforce Completed!\n");
-  
+  return features;
 }
 
 
@@ -562,15 +568,138 @@ Sharpen()
   }
 }
 
+void R2Image::
+line(int x0, int x1, int y0, int y1, float r, float g, float b)
+{
+	if(x0>x1)
+	{
+		int x=y1;
+		y1=y0;
+		y0=x;
+
+		x=x1;
+		x1=x0;
+		x0=x;
+	}
+     int deltax = x1 - x0;
+     int deltay = y1 - y0;
+     float error = 0;
+     float deltaerr = 0.0;
+	 if(deltax!=0) deltaerr =fabs(float(float(deltay) / deltax));    // Assume deltax != 0 (line is not vertical),
+           // note that this division needs to be done in a way that preserves the fractional part
+     int y = y0;
+     for(int x=x0;x<=x1;x++)
+	 {
+		 Pixel(x,y).Reset(r,g,b,1.0);
+         error = error + deltaerr;
+         if(error>=0.5)
+		 {
+			 if(deltay>0) y = y + 1;
+			 else y = y - 1;
+
+             error = error - 1.0;
+		 }
+	 }
+	 if(x0>3 && x0<width-3 && y0>3 && y0<height-3)
+	 {
+		 for(int x=x0-3;x<=x0+3;x++)
+		 {
+			 for(int y=y0-3;y<=y0+3;y++)
+			 {
+				 Pixel(x,y).Reset(r,g,b,1.0);
+			 }
+		 }
+	 }
+}
+
 
 void R2Image::
 blendOtherImageTranslated(R2Image * otherImage)
 {
 	// find at least 100 features on this image, and another 100 on the "otherImage". Based on these,
 	// compute the matching translation (pixel precision is OK), and blend the translated "otherImage" 
-	// into this image with a 50% opacity.
-	fprintf(stderr, "fit other image using translation and blend imageB over imageA\n");
-	return;
+  // into this image with a 50% opacity.
+
+  R2Image image_one(*this);
+  R2Image image_two(*this);
+  // image_two.Grayscale();
+  int* dreams; 
+  dreams = image_one.Harris(2);
+  R2Image image_three(*otherImage);
+  image_two.Grayscale();
+  image_three.Grayscale();
+
+
+  int ft = 0;
+  for (int i=0; i < 300; i+=2){
+    int x=dreams[i];
+    int y=dreams[i+1];
+    printf("--------------------First Image: %d, %d\n", x, y);
+    // printf("%f, %f, %f\n",dreams[i].Red(), dreams[i].Blue(), dreams[i].Green());
+    
+    // search windows
+    double win = 0.1;
+    
+    int minX = x;
+    int minY = y;
+    double minSSD = 1500;
+    for (int swX=x-(width*win) ; swX <= x+(width*win) && swX <= width ; swX++){
+      for (int swY=y-(height*win) ; swY <= y+(height*win) && swY <= height; swY++){
+        
+        if (swX < 0) swX = 0;
+        if (swY < 0) swY = 0;
+
+        double ssd = 0.0;
+        int s = 5;
+        for ( int ssdX=-s ; ssdX <= s ; ssdX++ ){
+         for ( int ssdY=-s ; ssdY <= s ; ssdY++ ){
+            double diff = image_two.Pixel(x+ssdX,y+ssdY).Red() - image_three.Pixel(swX+ssdX, swY+ssdY).Red();
+            ssd += (diff*diff);
+          }
+        }
+        if (ssd <= minSSD){
+          printf("is this being entered...? %f vs. %f\n", ssd, minSSD);
+          minSSD = ssd;
+          minX = swX;
+          minY = swY;
+        }
+      }
+    }
+
+    
+      
+    // printf("Second Image: %d,%d\n", swX, swY);
+
+    this->line(x,minX,y,minY, 1, 1, 1);
+    Pixel(x,y) = R2Pixel(1,0,0,1);          
+    Pixel(minX, minY) = R2Pixel(0,1,0,1);
+    ft += 1;
+    for (int lx = -10; lx <= 10; lx++){
+      for (int ly = -10; ly <= 10; ly++){
+        int xCoord = std::max(0, std::min(x +lx, width-1));
+        int yCoord = std::max(0, std::min(y +ly, height-1));
+        int sxCoord = std::max(0, std::min(minX +lx, width-1));
+        int syCoord = std::max(0, std::min(minY +ly, height-1));
+        
+        int radius = (ly*ly) + (lx*lx);
+        if (radius <= 18 && radius >= 8){
+          Pixel(xCoord,yCoord) = R2Pixel(1,0,0,1);
+          Pixel(sxCoord, syCoord) = R2Pixel(0,1,0,1);
+        }
+      }
+    }
+ 
+
+
+    printf("--------------------Second Image: %d, %d\n", minX, minY);        
+    printf("%d features found\n", ft+1);
+  }
+
+       
+      
+
+	// fprintf(stderr, "fit other image using translation and blend imageB over imageA\n");
+	// return;
 }
 
 void R2Image::
