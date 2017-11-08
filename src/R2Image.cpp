@@ -720,7 +720,7 @@ blendOtherImageHomography(R2Image * otherImage)
   image_three.Grayscale();
   std::vector<pair<double,double>> xy;
   std::vector<pair<double,double>> minxy;
-std::vector<double> differences;
+  std::vector<double> differences;
   
   int ft = 0;
   for (int i = 0; i < 300; i += 2)
@@ -817,59 +817,80 @@ std::vector<double> differences;
     // printf("%d\n",goodVectors[i]);
   }
 
-  // 30 iterations
-  int iters = 30;
-  for (int i=0; i < iters; i++ ){
+  double best_vector = -1;
+  double best_supporters = 0;
 
-    double distX = 0.0;
-    double distY = 0.0;
-    double totalDistance;
-    int threshold = 15;
-    
-    for (int j=0; j < 150; j++){
+  int trials = 75;
+  for (int a=0; a < trials; a++){
 
-      // gen random
-      int n = (rand() % 150);
-      // printf("[n]=%d\n",n);
+    // select random vector
+    int n = (rand() % 150);
+    int numSupporters = 0;
 
-      double rX = minxy.at(n).first - xy.at(n).first;
-      double rY = minxy.at(n).second - xy.at(n).second;
+    printf("[rand-n]=%d\n",n);
+    double rX = minxy.at(n).first - xy.at(n).first;
+    double rY = minxy.at(n).second - xy.at(n).second;
 
-      int inliers = 0;
-      for (int k=0; k < 150; k++){
-          if (goodVectors[i] == 0){
-              distY = minxy.at(i).second - (xy.at(i).second + rY);
-              distX = minxy.at(i).first - (xy.at(i).first + rX);
-              totalDistance = sqrt(distX*distX + distY*distY);
-              
-              //printf("[totDist]=%d\n", totalDistance);
-              if (totalDistance < threshold){
-                  inliers++;
-              }
-          }
-       }
-       
-       _inliers[n] = inliers;
-    }
-
-    int minInliers = 150;
-    int outlier = 0;
-    for (int j=0; j< 150; j++){
-      if ( _inliers[j] < minInliers && goodVectors[j] == 0){
-        minInliers = _inliers[j];
-        outlier = j;
+    // loop that counts the supporters
+    printf("[initial numSupporters]=%d, @ [a]=%d\n", numSupporters, a);
+    for (int b=0; b < 150; b++){
+      
+      // for all other 150 vectors
+      
+      // computations before we find a supporter
+      double distY = minxy.at(b).second - (xy.at(b).second + rY);
+      double distX = minxy.at(b).first - (xy.at(b).first + rX);
+      double totalDistance = sqrt( (distX * distX) + (distY * distY) );
+      
+      // decide if we a have a supporter or not.
+      if ( totalDistance < 4 ){
+        // printf("inside statement -- totDist=%f  \n", totalDistance);
+        numSupporters++;
       }
+
     }
 
-    if (minInliers < 50){
-      goodVectors[outlier] = 1;
+    printf("[final numSupporters]=%d, @ [a]=%d\n", numSupporters, a);
+
+    // deccide the best supporters
+    if ( numSupporters > best_supporters ){
+      printf("[%f][best_vector]=%d\n",a, best_vector);
+      best_vector = n;
+      best_supporters = numSupporters;
+      
+    }
+    _inliers[n] = numSupporters;
+    printf("\n\n");
+  }
+
+  printf("final [best_vector]=%f\n", best_vector);
+  goodVectors[(int)best_vector] = 1;
+
+  double rX = minxy.at(best_vector).first - xy.at(best_vector).first;
+  double rY = minxy.at(best_vector).second - xy.at(best_vector).second;
+
+  for ( int a=0; a < 150; a++){
+    if ( a != best_vector ){
+      double distY = minxy.at(a).second - (xy.at(a).second + rY);
+      double distX = minxy.at(a).first - (xy.at(a).first + rX);
+      double totalDistance = sqrt((distX * distX) + (distY * distY));
+
+      if ( totalDistance < 4){
+        goodVectors[a] = 1;
+      }
+
     }
   }
 
-  for (int j=0; j<150; j++){
-    if ( goodVectors[j] == 0){
+
+  for (int j = 0; j < 150; j++)
+  {
+    if (goodVectors[j] == 1)
+    {
       this->line(xy.at(j).first, minxy.at(j).first, xy.at(j).second, minxy.at(j).second, 0, 0, 1);
-    } else {
+    }
+    else
+    {
       this->line(xy.at(j).first, minxy.at(j).first, xy.at(j).second, minxy.at(j).second, 1, 0, 0);
     }
   }
