@@ -12,8 +12,7 @@
 #include <math.h>
 #include <vector>
 #include <algorithm>
-
-
+#include <iterator>
 
 ////////////////////////////////////////////////////////////////////////
 // Constructors/Destructors
@@ -343,6 +342,14 @@ void R2Image::
 Blur(double sigma)
 {
   // Gaussian blur of the image. Separable solution is preferred
+  int x[] = {0,1,1,0};
+  int y[] = {0,0,1,1};
+  int _x[] = {1,2,2,1};
+  int _y[] = {0,0,1,1};
+  int numPoints = 4;
+
+  HomographyEstimation( x, y, _x, _y, numPoints);
+  exit(0);
   
   R2Image tempImage(*this);
 
@@ -614,6 +621,63 @@ line(int x0, int x1, int y0, int y1, float r, float g, float b)
 	 }
 }
 
+void R2Image::
+HomographyEstimation(int *x, int *y, int *_x, int *_y, int numPoints){
+  printf("Begin Homography Estimation!!!\n");
+
+  // build the 2n x 9 matrix of equations
+  double **linEquations = dmatrix(1, 2*numPoints, 1, 9);
+
+  int ctr = 0;
+  for (int i=1; i <= numPoints*2; i+=2){
+    printf("x,y=[%d,%d]...x',y'=[%d,%d]\n", x[ctr], y[ctr], _x[ctr], _y[ctr]);
+
+    /* 
+    e.g. numPoints = 4, 4*2 = 8 ... 1 -> 8
+    1 2 
+    3 4 
+    5 6 
+    7 8
+    */
+    linEquations[i][1] = 0.0;
+    linEquations[i][2] = 0.0;
+    linEquations[i][3] = 0.0;
+    linEquations[i][4] = -1.0 * x[ctr];
+    linEquations[i][5] = -1.0 * y[ctr];
+    linEquations[i][6] = -1.0 * 1.0;
+    linEquations[i][7] = _y[ctr] * x[ctr];
+    linEquations[i][8] = _y[ctr] * y[ctr];
+    linEquations[i][9] = _y[ctr] * 1.0;
+
+    linEquations[i+1][1] = 1.0 * x[ctr];
+    linEquations[i+1][2] = 1.0 * y[ctr];
+    linEquations[i+1][3] = 1.0 * 1.0;
+    linEquations[i+1][4] = 0.0;
+    linEquations[i+1][5] = 0.0;
+    linEquations[i+1][6] = 0.0;
+    linEquations[i+1][7] = -_x[ctr] * x[ctr];
+    linEquations[i+1][8] = -_x[ctr] * y[ctr];
+    linEquations[i+1][9] = -_x[ctr] * 1.0;
+      
+    ctr++;
+  }
+
+  // compute the svd
+  double singularValues[10]; // 1..9
+  double** nullspaceMatrix = dmatrix(1,9,1,9);
+  svdcmp(linEquations, numPoints*2, 9, singularValues, nullspaceMatrix);
+  
+  // find the smallest singular value
+  int smallestIndex = 1;
+  for (int i=2;i<10;i++)
+    if (singularValues[i] < singularValues[smallestIndex]) smallestIndex=i;
+
+  // solution is the nullspace of the matrix, which is the column in V corresponding to the smallest singular value (which should be 0)
+  printf("Conic Coefficients...\n");
+  for (int i=1; i<10; i++){
+    printf("NULLSPACE MATRIX @ [i]=%d, [smallest idx]=%d, [Conic Coefficient]=%f\n", i, smallestIndex, nullspaceMatrix[i][smallestIndex]);
+  }
+}
 
 void R2Image::
 blendOtherImageTranslated(R2Image * otherImage)
@@ -810,10 +874,10 @@ blendOtherImageHomography(R2Image * otherImage)
   // randsCalled.push_back(n);
 
   int goodVectors[150];
-  int _inliers[150];
+  // int _inliers[150];
   for (int i=0; i<150;i++){
     goodVectors[i] = 0;
-    _inliers[i] = 0;
+    // _inliers[i] = 0;
     // printf("%d\n",goodVectors[i]);
   }
 
@@ -854,12 +918,12 @@ blendOtherImageHomography(R2Image * otherImage)
 
     // deccide the best supporters
     if ( numSupporters > best_supporters ){
-      printf("[%f][best_vector]=%d\n",a, best_vector);
+      printf("[%d][best_vector]=%f\n",a, best_vector);
       best_vector = n;
       best_supporters = numSupporters;
       
     }
-    _inliers[n] = numSupporters;
+    // _inliers[n] = numSupporters;
     printf("\n\n");
   }
 

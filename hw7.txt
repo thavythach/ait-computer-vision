@@ -1,0 +1,15 @@
+Begin Homography Estimation!!!
+x,y=[0,0]...x',y'=[1,0]
+x,y=[1,0]...x',y'=[2,0]
+x,y=[1,1]...x',y'=[2,1]
+x,y=[0,1]...x',y'=[1,1]
+Conic Coefficients...
+NULLSPACE MATRIX @ [i]=1, [smallest idx]=7, [Conic Coefficient]=-0.500000
+NULLSPACE MATRIX @ [i]=2, [smallest idx]=7, [Conic Coefficient]=-0.000000
+NULLSPACE MATRIX @ [i]=3, [smallest idx]=7, [Conic Coefficient]=-0.500000
+NULLSPACE MATRIX @ [i]=4, [smallest idx]=7, [Conic Coefficient]=-0.000000
+NULLSPACE MATRIX @ [i]=5, [smallest idx]=7, [Conic Coefficient]=-0.500000
+NULLSPACE MATRIX @ [i]=6, [smallest idx]=7, [Conic Coefficient]=0.000000
+NULLSPACE MATRIX @ [i]=7, [smallest idx]=7, [Conic Coefficient]=-0.000000
+NULLSPACE MATRIX @ [i]=8, [smallest idx]=7, [Conic Coefficient]=-0.000000
+NULLSPACE MATRIX @ [i]=9, [smallest idx]=7, [Conic Coefficient]=-0.500000

@@ -75,11 +75,13 @@ class R2Image {
   void Sharpen(void);
   void Grayscale();
   void line(int x0, int x1, int y0, int y1, float r, float g, float b);
+ 
 
   // further operations
   void blendOtherImageTranslated(R2Image * otherImage);
   void blendOtherImageHomography(R2Image * otherImage);
-
+  void HomographyEstimation(int *x, int *y, int *_x, int *_y, int numPoints);
+  
   // File reading/writing
   int Read(const char *filename);
   int ReadBMP(const char *filename);
