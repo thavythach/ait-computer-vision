@@ -342,14 +342,15 @@ void R2Image::
 Blur(double sigma)
 {
   // Gaussian blur of the image. Separable solution is preferred
+  /* 
+  uncomment to use homography estimation
   int x[] = {0,1,1,0};
   int y[] = {0,0,1,1};
   int _x[] = {1,2,2,1};
   int _y[] = {0,0,1,1};
   int numPoints = 4;
-
   HomographyEstimation( x, y, _x, _y, numPoints);
-  exit(0);
+  exit(0); */
   
   R2Image tempImage(*this);
 
@@ -622,7 +623,7 @@ line(int x0, int x1, int y0, int y1, float r, float g, float b)
 }
 
 void R2Image::
-HomographyEstimation(int *x, int *y, int *_x, int *_y, int numPoints){
+HomographyEstimation(int *x, int *y, int *_x, int *_y, int numPoints, double* h){
   printf("Begin Homography Estimation!!!\n");
 
   // build the 2n x 9 matrix of equations
@@ -676,7 +677,11 @@ HomographyEstimation(int *x, int *y, int *_x, int *_y, int numPoints){
   printf("Conic Coefficients...\n");
   for (int i=1; i<10; i++){
     printf("NULLSPACE MATRIX @ [i]=%d, [smallest idx]=%d, [Conic Coefficient]=%f\n", i, smallestIndex, nullspaceMatrix[i][smallestIndex]);
+    h[i-1] = nullspaceMatrix[i][smallestIndex];
+    printf("added to h-matrix: %f\n", h[i-1]);
   }
+
+  
 }
 
 void R2Image::
@@ -771,7 +776,8 @@ blendOtherImageTranslated(R2Image * otherImage)
 void R2Image::
 blendOtherImageHomography(R2Image * otherImage)
 {
-	// find at least 100 features on this image, and another 100 on the "otherImage". Based on these,
+  
+  // find at least 100 features on this image, and another 100 on the "otherImage". Based on these,
   // compute the matching homography, and blend the transformed "otherImage" into this image with a 50% opacity.
 
   R2Image image_one(*this);
@@ -866,99 +872,132 @@ blendOtherImageHomography(R2Image * otherImage)
     printf("%d features found\n", ft + 1);
   }
 
-  
-  // std::vector<int> randsCalled;
+  /**
+   * Compute DLT-BASED RANSAC
+   * **/
+
+  // HomographyEstimation(x, y, _x, _y, numPoints);
+
+    // std::vector<int> randsCalled;
 
   // double dist_threshold = 50.0;
 
   // randsCalled.push_back(n);
 
-  int goodVectors[150];
-  // int _inliers[150];
-  for (int i=0; i<150;i++){
-    goodVectors[i] = 0;
-    // _inliers[i] = 0;
-    // printf("%d\n",goodVectors[i]);
-  }
 
-  double best_vector = -1;
-  double best_supporters = 0;
+  int trials = 1000; // TODO: put in 1000.
+  int minPoints = 4;
+  int dist_threshold = 4;
+  double *hCurr; // best Hmatrix
+  int maxInliers = 0;
 
-  int trials = 75;
   for (int a=0; a < trials; a++){
+    printf("BEGIN Iteration @ [i]=%d\n", a );
 
-    // select random vector
-    int n = (rand() % 150);
-    int numSupporters = 0;
+    int inliers = 0; 
+    // for loop if # of inliers < threshold
+    printf("MAX INLIERS=[%d], NUMBER OF INLIERS=[%d]\n", maxInliers, inliers);
 
-    printf("[rand-n]=%d\n",n);
-    double rX = minxy.at(n).first - xy.at(n).first;
-    double rY = minxy.at(n).second - xy.at(n).second;
+    // minPoints = 4, TODO: make this dynamic for however many points and account for dupes.
+    int rIdx1 = ((rand() % 150));
+    int rIdx2 = ((rand() % 150));
+    int rIdx3 = ((rand() % 150));
+    int rIdx4 = ((rand() % 150));
 
-    // loop that counts the supporters
-    printf("[initial numSupporters]=%d, @ [a]=%d\n", numSupporters, a);
+    int rIdxs[minPoints] = {rIdx1, rIdx2, rIdx3, rIdx4};
+
+    int xs[minPoints];
+    int ys[minPoints];
+    int _xs[minPoints];
+    int _ys[minPoints];
+
+    // extract all points
+    for (int i = 0; i < minPoints; i++){
+      printf("Random Point Correspondences (%d/%d): %d\n", i + 1, minPoints, rIdxs[i]);
+      xs[i] = xy.at(rIdxs[i]).first;
+      ys[i] = xy.at(rIdxs[i]).second;
+      _xs[i] = minxy.at(rIdxs[i]).first;
+      _ys[i] = minxy.at(rIdxs[i]).second;
+    }
+
+    double h[9]; // h-matrix computed from the random points.
+    // double real_h[3][3]; // probably won't use now
+    HomographyEstimation(xs, ys, _xs, _ys, minPoints, h); // computes H using N-DLT
+    if ( a==0 ) hCurr = h; // sets the first iteration as the best matrix
+    
+    // convert 1D to 2D, TODO: just pass by reference a 2D array later.
+    for (int i = 0; i < 9; i++){
+      // real_h[i % 3][i / 3] = h[i];
+      printf("Pass by reference @ [%d]: %f\n", i,h[i]);
+      // printf("Transferred @ [%d] for real_h[%d][%d]: %f\n", i,i%3,i/3, real_h[i % 3][i / 3]);
+    }
+
+    /* 
+    [1] Traverse through all point correspondences that are not 4 random correspondences
+    [2] for every point correspondence, compute distX, distY
+    [3] distX = x' - (h*x); 
+    [4] distY = y' - (h*y);
+    [5] calc totalDistance sqrt(distx^2 + disty^2)
+    [6] check threshold against totaldistance
+    [7] when true: break loop
+    [8] when false: repeat the 4 random correspondences until n trials
+    */
     for (int b=0; b < 150; b++){
-      
-      // for all other 150 vectors
-      
-      // computations before we find a supporter
-      double distY = minxy.at(b).second - (xy.at(b).second + rY);
-      double distX = minxy.at(b).first - (xy.at(b).first + rX);
-      double totalDistance = sqrt( (distX * distX) + (distY * distY) );
-      
-      // decide if we a have a supporter or not.
-      if ( totalDistance < 4 ){
-        // printf("inside statement -- totDist=%f  \n", totalDistance);
-        numSupporters++;
+
+      // != random correspondences
+      if ( b != rIdx1 && 
+            b != rIdx2 &&
+            b != rIdx3 &&
+            b != rIdx4){
+              
+              // printf("FEATURE CORRESPONDENCE != Random = [%d]\n", b);
+              // b(x,y,z) locally referenced
+              int b_x = xy.at(b).first;
+              int b_y = xy.at(b).second;
+              int b_z = 1;
+
+              double hx[3]; // hx to compare to x'
+
+              // matrix multiplication of 3x3 * 1*3 = 1*3
+              int dCtr = 0;
+              for (int d = 0; d < 9; d += 3){
+                hx[dCtr] = (h[d] * b_x) + (h[d + 1] * b_y) + (h[d + 2] * b_z);
+                // printf("Result of Hx @ [%d]: %f\n\n", dCtr, hx[dCtr]);
+                dCtr++;
+              } 
+
+              // convert homogenous coordinates to cartesian coordinates b/c of scale
+              double hx_X = hx[0] / hx[2];
+              double hx_Y = hx[1] / hx[2];
+              
+              // printf("[hxX,hxY]=(%f,%f)\n", hx_X, hx_Y);
+
+              // compute distY and distX
+              double distY = minxy.at(b).second - hx_X;
+              double distX = minxy.at(b).first - hx_Y;
+              double totalDistance = sqrt( distX*distX + distY*distY );
+              
+              // decide if we have a supporter/inlier or not
+              if ( totalDistance < dist_threshold ){
+                inliers++;
+              }
       }
-
+    }
+    
+    // update best H and record all inliers
+    if (inliers > maxInliers){
+      hCurr = h;
+      maxInliers = inliers;
     }
 
-    printf("[final numSupporters]=%d, @ [a]=%d\n", numSupporters, a);
+    printf("MAX INLIERS=[%d], NUMBER OF INLIERS=[%d]\n", maxInliers, inliers);
 
-    // deccide the best supporters
-    if ( numSupporters > best_supporters ){
-      printf("[%d][best_vector]=%f\n",a, best_vector);
-      best_vector = n;
-      best_supporters = numSupporters;
-      
+    printf("END Iteration @ [i]=%d\n\n", a);
     }
-    // _inliers[n] = numSupporters;
-    printf("\n\n");
-  }
 
-  printf("final [best_vector]=%f\n", best_vector);
-  goodVectors[(int)best_vector] = 1;
-
-  double rX = minxy.at(best_vector).first - xy.at(best_vector).first;
-  double rY = minxy.at(best_vector).second - xy.at(best_vector).second;
-
-  for ( int a=0; a < 150; a++){
-    if ( a != best_vector ){
-      double distY = minxy.at(a).second - (xy.at(a).second + rY);
-      double distX = minxy.at(a).first - (xy.at(a).first + rX);
-      double totalDistance = sqrt((distX * distX) + (distY * distY));
-
-      if ( totalDistance < 4){
-        goodVectors[a] = 1;
-      }
-
-    }
   }
 
 
-  for (int j = 0; j < 150; j++)
-  {
-    if (goodVectors[j] == 1)
-    {
-      this->line(xy.at(j).first, minxy.at(j).first, xy.at(j).second, minxy.at(j).second, 0, 0, 1);
-    }
-    else
-    {
-      this->line(xy.at(j).first, minxy.at(j).first, xy.at(j).second, minxy.at(j).second, 1, 0, 0);
-    }
-  }
-}
 
 ////////////////////////////////////////////////////////////////////////
 // I/O Functions

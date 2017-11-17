@@ -1,0 +1,19 @@
+homework 8:
+
+implement dlt based ransac
+-randomly pick 4 points
+-estimate H
+-compare all other correspondences
+-choose the best H and reject outliers
+
+what to submit:
+[1]test image w/ color coded lines + code
+[2]bridge example should work well
+[3]additional test images coming 
+[4]due friday night for thavy
+
+....
+
+homework 9????
+do that by saturday night [fuck me]
+
