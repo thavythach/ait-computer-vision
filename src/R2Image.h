@@ -80,8 +80,10 @@ class R2Image {
   // further operations
   void blendOtherImageTranslated(R2Image * otherImage);
   void blendOtherImageHomography(R2Image * otherImage);
-  void HomographyEstimation(int *x, int *y, int *_x, int *_y, int numPoints, double* h);
-  
+  void HomographyEstimation(double *x, double *y, double *_x, double *_y, int numPoints, double *h);
+  void computeRANSAC( int mode, double *x, double *y, double *_x, double* _y );
+  double hCompute(double *h, double x);
+
   // File reading/writing
   int Read(const char *filename);
   int ReadBMP(const char *filename);
@@ -94,7 +96,7 @@ class R2Image {
 
  private:
   // Utility functions
-  void Resize(int width, int height);
+  void Resize(int width, int height); 
   R2Pixel Sample(double u, double v,  int sampling_method);
 
  private:

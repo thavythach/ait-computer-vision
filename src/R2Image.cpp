@@ -13,6 +13,7 @@
 #include <vector>
 #include <algorithm>
 #include <iterator>
+#include <utility>
 
 ////////////////////////////////////////////////////////////////////////
 // Constructors/Destructors
@@ -623,7 +624,7 @@ line(int x0, int x1, int y0, int y1, float r, float g, float b)
 }
 
 void R2Image::
-HomographyEstimation(int *x, int *y, int *_x, int *_y, int numPoints, double* h){
+HomographyEstimation(double *x, double *y, double *_x, double *_y, int numPoints, double* h){
   printf("Begin Homography Estimation!!!\n");
 
   // build the 2n x 9 matrix of equations
@@ -631,7 +632,7 @@ HomographyEstimation(int *x, int *y, int *_x, int *_y, int numPoints, double* h)
 
   int ctr = 0;
   for (int i=1; i <= numPoints*2; i+=2){
-    printf("x,y=[%d,%d]...x',y'=[%d,%d]\n", x[ctr], y[ctr], _x[ctr], _y[ctr]);
+    printf("x,y=[%f,%f]...x',y'=[%f,%f]\n", x[ctr], y[ctr], _x[ctr], _y[ctr]);
 
     /* 
     e.g. numPoints = 4, 4*2 = 8 ... 1 -> 8
@@ -766,11 +767,92 @@ blendOtherImageTranslated(R2Image * otherImage)
     printf("%d features found\n", ft+1);
   }
 
-       
-      
+}
 
-	// fprintf(stderr, "fit other image using translation and blend imageB over imageA\n");
-	// return;
+void R2Image::
+computeRANSAC(int mode, double *x, double *y, double *_x, double *_y){
+  /**
+   * (x,y) set
+   * (x',y') set
+   * 
+   * Using this list of items, compute RANSAC the Homography way.
+   * */
+  const int numFeatures = 150; //  
+  
+  // print all features
+  // for (int i=0; i < numFeatures; i++) printf("x,y=(%f,%f)\nx',y'=(%f,%f)\n\n", x[i],y[i],_x[i],_y[i]);
+
+  /** BELOW: all algorithms COMPUTING 2D homography **/
+
+  int N = 1; // ESTIMATIONS
+  const int T_DIST = 4; // DISTANCE THRESHOLD
+  int MAX_inlier = -1; // STARTING MAX_INLIER
+  int minPoints = 4;
+  double p = 0.99;
+  double min_STD = 10000;
+  double H[9];
+
+  // for every ith estimation
+  for (int i=0; i < N; i++){
+    
+    // randomly choose 4 correspondences
+    int rCorrs[minPoints] = {(rand() % 150),
+                     (rand() % 150),
+                     (rand() % 150),
+                     (rand() % 150) 
+    };
+
+
+    double xx[minPoints], yy[minPoints], _xx[minPoints], _yy[minPoints];
+
+
+    // prints chosen 4 correspondences values
+    for (int j=0; j < minPoints ; j++){
+      printf("RANDS=[%d]\n",rCorrs[j]); 
+      xx[j] = x[rCorrs[j]];
+      yy[j] = x[rCorrs[j]];
+      _xx[j] = x[rCorrs[j]];
+      _yy[j] = x[rCorrs[j]];
+
+    }
+    
+    double hCurr[9]; // pass as reference
+
+    // compute the homography Hcurr by normalized DLT from 4 point pairs
+    HomographyEstimation(
+      xx,
+      yy,
+      _xx,
+      _yy,
+      4,
+      hCurr
+    );
+
+    // sets initial BEST H.
+    if ( i==0 )
+      std::copy(std::begin(hCurr), std::end(hCurr), std::begin(H));
+
+    // for each putative correspondence, calculate di (ssd) = d(x', hCurr*x)-d(X', H^-1*x)
+    for (int j=0; j < numFeatures; j++){
+      
+      // not the 4 random correspondences 
+      if ( j != rCorrs[0] && j != rCorrs[1] && j != rCorrs[2] && j != rCorrs[3] ){
+
+        double distX = _x[j] - hCompute(hCurr, x[j] );
+        double distY = _y[j] - hCompute(hCurr, y[j] );
+
+      }
+    }
+  }
+
+
+
+}
+
+double R2Image::
+hCompute( double* h, double x ){
+
+  return NULL;
 }
 
 void R2Image::
@@ -872,177 +954,20 @@ blendOtherImageHomography(R2Image * otherImage)
     printf("%d features found\n", ft + 1);
   }
 
-  /**
-   * Compute DLT-BASED RANSAC
-   * **/
+  double x[150];
+  double y[150];
+  double _x[150];
+  double _y[150];
 
-  // HomographyEstimation(x, y, _x, _y, numPoints);
-
-    // std::vector<int> randsCalled;
-
-  // double dist_threshold = 50.0;
-
-  // randsCalled.push_back(n);
-
-
-  int trials = 1000; // TODO: put in 1000.
-  int minPoints = 4;
-  int dist_threshold = 4;
-  int threshold = 150-50; // 150 features  - 50 features threshold
-  double hCurr[9];
-  int maxInliers = 0;
-
-  for (int a=0; a < trials; a++){
-    printf("BEGIN Iteration @ [i]=%d\n", a );
-
-    int inliers = 0; 
-    // for loop if # of inliers < threshold
-    printf("MAX INLIERS=[%d], NUMBER OF INLIERS=[%d]\n", maxInliers, inliers);
-
-    // minPoints = 4, TODO: make this dynamic for however many points and account for dupes.
-    int rIdx2 = ((rand() % 150));
-    int rIdx1 = ((rand() % 150));
-    int rIdx3 = ((rand() % 150));
-    int rIdx4 = ((rand() % 150));
-
-    int rIdxs[minPoints] = {rIdx1, rIdx2, rIdx3, rIdx4};
-
-    int xs[minPoints];
-    int ys[minPoints];
-    int _xs[minPoints];
-    int _ys[minPoints];
-
-    // extract all points
-    for (int i = 0; i < minPoints; i++){
-      printf("Random Point Correspondences (%d/%d): %d\n", i + 1, minPoints, rIdxs[i]);
-      xs[i] = xy.at(rIdxs[i]).first;
-      ys[i] = xy.at(rIdxs[i]).second;
-      _xs[i] = minxy.at(rIdxs[i]).first;
-      _ys[i] = minxy.at(rIdxs[i]).second;
-    }
-
-    double h[9]; // h-matrix computed from the random points.
-    // double real_h[3][3]; // probably won't use now
-    HomographyEstimation(xs, ys, _xs, _ys, minPoints, h); // computes H using N-DLT
-    if ( a==0 ){
-      // hCurr = h; // sets the first iteration as the best matrix
-      std::copy(std::begin(h), std::end(h), std::begin(hCurr));
-    }
-    // convert 1D to 2D, TODO: just pass by reference a 2D array later.
-    for (int i = 0; i < 9; i++){
-      // real_h[i % 3][i / 3] = h[i];
-      printf("Pass by reference @ [%d]: %f\n", i,h[i]);
-      // printf("Transferred @ [%d] for real_h[%d][%d]: %f\n", i,i%3,i/3, real_h[i % 3][i / 3]);
-    }
-
-    /* 
-    [1] Traverse through all point correspondences that are not 4 random correspondences
-    [2] for every point correspondence, compute distX, distY
-    [3] distX = x' - (h*x); 
-    [4] distY = y' - (h*y);
-    [5] calc totalDistance sqrt(distx^2 + disty^2)
-    [6] check threshold against totaldistance
-    [7] when true: break loop
-    [8] when false: repeat the 4 random correspondences until n trials
-    */
-    for (int b=0; b < 150; b++){
-
-      // != random correspondences
-      if ( b != rIdx1 && 
-            b != rIdx2 &&
-            b != rIdx3 &&
-            b != rIdx4){
-              
-              // printf("FEATURE CORRESPONDENCE != Random = [%d]\n", b);
-              // b(x,y,z) locally referenced
-              int b_x = xy.at(b).first;
-              int b_y = xy.at(b).second;
-              int b_z = 1;
-
-              double hx[3]; // hx to compare to x'
-
-              // matrix multiplication of 3x3 * 1*3 = 1*3
-              int dCtr = 0;
-              for (int d = 0; d < 9; d += 3){
-                hx[dCtr] = (h[d] * b_x) + (h[d + 1] * b_y) + (h[d + 2] * b_z);
-                // printf("Result of Hx @ [%d]: %f\n\n", dCtr, hx[dCtr]);
-                dCtr++;
-              } 
-
-              // convert homogenous coordinates to cartesian coordinates b/c of scale
-              double hx_X = hx[0] / hx[2];
-              double hx_Y = hx[1] / hx[2];
-              
-              // printf("[hxX,hxY]=(%f,%f)\n", hx_X, hx_Y);
-
-              // compute distY and distX
-              double distY = minxy.at(b).second - hx_X;
-              double distX = minxy.at(b).first - hx_Y;
-              double totalDistance = sqrt( distX*distX + distY*distY );
-              
-              // decide if we have a supporter/inlier or not
-              if ( totalDistance < dist_threshold ){
-                inliers++;
-              }
-      }
-    }
-    // update best H and record all inliers
-    if (inliers > maxInliers) {
-      std::copy(std::begin(h), std::end(h), std::begin(hCurr));
-      maxInliers = inliers;
-    }
-
-  printf("MAX INLIERS=[%d], NUMBER OF INLIERS=[%d]\n", maxInliers, inliers);
-
-  printf("END Iteration @ [i]=%d\n\n", a);
-    
+  for (int i=0; i < 150; i++){
+    x[i] = xy.at(i).first;
+    y[i] =  xy.at(i).second;
+    _x[i] = minxy.at(i).first;
+    _y[i] = minxy.at(i).second;
   }
-  // decide if we have a supporter/inlier or not
-  int goodVectors[150];
-  for (int i = 0; i < 150; i++)
-    goodVectors[i] = 0;
-
-  for (int b = 0; b < 150; b++){
-    // printf("FEATURE CORRESPONDENCE != Random = [%d]\n", b);
-    // b(x,y,z) locally referenced
-    int b_x = xy.at(b).first;
-    int b_y = xy.at(b).second;
-    int b_z = 1;
-
-    double hx[3]; // hx to compare to x'
-
-    // matrix multiplication of 3x3 * 1*3 = 1*3
-    int dCtr = 0;
-    for (int d = 0; d < 9; d += 3){
-      hx[dCtr] = (hCurr[d] * b_x) + (hCurr[d + 1] * b_y) + (hCurr[d + 2] * b_z);
-      // printf("Result of Hx @ [%d]: %f\n\n", dCtr, hx[dCtr]);
-      dCtr++;
-    }
-
-    // convert homogenous coordinates to cartesian coordinates b/c of scale
-    double hx_X = hx[0] / hx[2];
-    double hx_Y = hx[1] / hx[2];
-
-    // printf("[hxX,hxY]=(%f,%f)\n", hx_X, hx_Y);
-
-    // compute distY and distX
-    double distY = minxy.at(b).second - hx_X;
-    double distX = minxy.at(b).first - hx_Y;
-    double totalDistance = sqrt(distX * distX + distY * distY);
-
-    
-    if (totalDistance < dist_threshold){
-      printf("IS THIS ABOVE OR NAH... %f\n", totalDistance);
-      goodVectors[b] = 1;
-    }
-
-    if (goodVectors[b] == 1){
-      this->line(xy.at(b).first, minxy.at(b).first, xy.at(b).second, minxy.at(b).second, 0, 0, 1);
-    } else {
-      this->line(xy.at(b).first, minxy.at(b).first, xy.at(b).second, minxy.at(b).second, 1, 0, 0);
-    }
-
-  }
+  
+  // 0 for homography, 1 for translation
+  computeRANSAC( 0, x, y, _x, _y );
 }
 
 
