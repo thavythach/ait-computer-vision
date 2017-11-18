@@ -82,7 +82,6 @@ class R2Image {
   void blendOtherImageHomography(R2Image * otherImage);
   void HomographyEstimation(double *x, double *y, double *_x, double *_y, int numPoints, double *h);
   void computeRANSAC( int mode, double *x, double *y, double *_x, double* _y );
-  double hCompute(double *h, double x);
 
   // File reading/writing
   int Read(const char *filename);
