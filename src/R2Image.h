@@ -82,13 +82,6 @@ class R2Image {
   void blendOtherImageHomography(R2Image * otherImage);
   void HomographyEstimation(double *x, double *y, double *_x, double *_y, int numPoints, double *h);
 
-  #define N 3
-  void getCofactor(double A[N][N], double temp[N][N], int p, int q, int n);
-  int determinant(double A[N][N], int n);
-  void adjoint(double A[N][N], double adj[N][N]);
-  bool inverse(double A[N][N], double inverse[N][N]);
-  template <class T>
-  void display(T A[N][N]);
 
   // File reading/writing
   int Read(const char *filename);

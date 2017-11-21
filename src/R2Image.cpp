@@ -260,10 +260,12 @@ Brighten(double factor)
 {
   // Brighten the image by multiplying each pixel component by the factor.
   // This is implemented for you as an example of how to access and set pixels
-  for (int i = 0; i < width; i++) {
-    for (int j = 0;  j < height; j++) {
-      Pixel(i,j) *= factor;
-      Pixel(i,j).Clamp();
+
+  //traverse through whole image
+  for (int x=0; x < width; x++){
+    for(int y=0; y < height; y++){
+      Pixel(x,y) *= factor;
+      // Pixel(i, j).Clamp(); // Can use for permanent clamp values.
     }
   }
 }
@@ -274,21 +276,33 @@ SobelX(void)
   R2Image tempImage(*this);
   // Apply the Sobel operator to the image in X direction
   
+  // kernel for Sobel in the X-Direction
   int kernel[3][3] = {
-              {1,0,-1},
-              {2,0,-2},
-              {1,0,-1}
-              };
+    {1,0,-1},
+    {2,0,-2},
+    {1,0,-1}
+  };
+  
+  // traverse through whole image
   for (int x=1; x <= width-1; x++){
-    for (int y=1; y <= height-1; y++){
+    for(int y=1; y <= height-1; y++){
+      
+      // create new pixel pointer
       R2Pixel* val = new R2Pixel();
-      for (int lx=-1; lx <= 1; lx++){
-        for (int ly=-1; ly <= 1; ly++){
-          *val += tempImage.Pixel(x+lx,y+ly)*kernel[lx+1][ly+1];
+      
+      // traverse through 3x3 window of pixels where center is current pixel
+      int s = 1;
+      for (int lx=-s; lx <= s; lx++){
+        for (int ly=-s; ly <= s; ly++){
+
+          // calculate x-direction sobel value from surrounding pixels
+          *val += tempImage.Pixel(x+lx, y+ly) * kernel[lx+1][ly+1];
+
         }
       }
+
+      // set Pixel value for every pixel
       Pixel(x,y) = *val;
-      // Pixel(x,y).Clamp();
     }
   }
 }
@@ -299,22 +313,35 @@ SobelY(void)
   R2Image tempImage(*this);
 	// Apply the Sobel oprator to the image in Y direction
    int kernel[3][3] = {
-              {-1,-2,-1},
-              {0,0,0},
-              {1,2,1}
-              };
-  for (int x=1; x <= width-1; x++){
-    for (int y=1; y <= height-1; y++){
-      R2Pixel* val = new R2Pixel();
-      for (int lx=-1; lx <= 1; lx++){
-        for (int ly=-1; ly <= 1; ly++){
-          *val += tempImage.Pixel(x+lx,y+ly)*kernel[lx+1][ly+1];
-        }
-      }
-      Pixel(x,y) = *val;
-      // Pixel(x,y).Clamp();
-    }
-  }
+    {-1,-2,-1},
+    {0,0,0},
+    {1,2,1}
+  };
+   // traverse through whole image
+   for (int x = 1; x <= width - 1; x++)
+   {
+     for (int y = 1; y <= height - 1; y++)
+     {
+
+       // create new pixel pointer
+       R2Pixel *val = new R2Pixel();
+
+       // traverse through 3x3 window of pixels where center is current pixel
+       int s = 1;
+       for (int lx = -s; lx <= s; lx++)
+       {
+         for (int ly = -s; ly <= s; ly++)
+         {
+
+           // calculate y-direction sobel value from surrounding pixels
+           *val += tempImage.Pixel(x + lx, y + ly) * kernel[lx + 1][ly + 1];
+         }
+       }
+
+       // set Pixel value for every pixel
+       Pixel(x, y) = *val;
+     }
+   }
 }
 
 void R2Image::
@@ -908,25 +935,6 @@ blendOtherImageHomography(R2Image * otherImage)
     minxy.push_back( std::make_pair(minX, minY) );
 
     ft += 1;
-    /* for (int lx = -10; lx <= 10; lx++)
-     {
-      for (int ly = -10; ly <= 10; ly++)
-      {
-        int xCoord = std::max(0, std::min(x + lx, width - 1));
-        int yCoord = std::max(0, std::min(y + ly, height - 1));
-        int sxCoord = std::max(0, std::min(minX + lx, width - 1));
-        int syCoord = std::max(0, std::min(minY + ly, height - 1));
-
-        int radius = (ly * ly) + (lx * lx);
-        if (radius <= 18 && radius >= 8)
-        {
-          Pixel(xCoord, yCoord) = R2Pixel(1, 0, 0, 1);
-          Pixel(sxCoord, syCoord) = R2Pixel(0, 1, 0, 1);
-        }
-      }
-    } */
-    
-    // printf("--------------------Second Image: %d, %d\n", minX, minY);
     printf("fixlyfeup %d features found\n", ft + 1);
   }
 
@@ -1137,133 +1145,6 @@ blendOtherImageHomography(R2Image * otherImage)
   
 }
 
-template <class T>
-void R2Image::
-display(T A[N][N])
-{
-  for (int i = 0; i < N; i++)
-  {
-    for (int j = 0; j < N; j++)
-      cout << A[i][j] << " ";
-    cout << endl;
-  }
-}
-
-// Function to get cofactor of A[p][q] in temp[][]. n is current
-// dimension of A[][]
-void R2Image::
-  getCofactor(double A[N][N], double temp[N][N], int p, int q, int n)
-{
-  int i = 0, j = 0;
-
-  // Looping for each element of the matrix
-  for (int row = 0; row < n; row++)
-  {
-    for (int col = 0; col < n; col++)
-    {
-      //  Copying into temporary matrix only those element
-      //  which are not in given row and column
-      if (row != p && col != q)
-      {
-        temp[i][j++] = A[row][col];
-
-        // Row is filled, so increase row index and
-        // reset col index
-        if (j == n - 1)
-        {
-          j = 0;
-          i++;
-        }
-      }
-    }
-  }
-}
-
-/* Recursive function for finding determinant of matrix.
-   n is current dimension of A[][]. */
-int R2Image::
-determinant(double A[N][N], int n)
-{
-  int D = 0; // Initialize result
-
-  //  Base case : if matrix contains single element
-  if (n == 1)
-    return A[0][0];
-
-  double temp[N][N]; // To store cofactors
-
-  int sign = 1; // To store sign multiplier
-
-  // Iterate for each element of first row
-  for (int f = 0; f < n; f++)
-  {
-    // Getting Cofactor of A[0][f]
-    getCofactor(A, temp, 0, f, n);
-    D += sign * A[0][f] * determinant(temp, n - 1);
-
-    // terms are to be added with alternate sign
-    sign = -sign;
-  }
-
-  return D;
-}
-
-// Function to get adjoint of A[N][N] in adj[N][N].
-void R2Image::
-adjoint(double A[N][N], double adj[N][N])
-{
-  if (N == 1)
-  {
-    adj[0][0] = 1;
-    return;
-  }
-
-  // temp is used to store cofactors of A[][]
-  int sign = 1;
-  double temp[N][N];
-
-  for (int i = 0; i < N; i++)
-  {
-    for (int j = 0; j < N; j++)
-    {
-      // Get cofactor of A[i][j]
-      getCofactor(A, temp, i, j, N);
-
-      // sign of adj[j][i] positive if sum of row
-      // and column indexes is even.
-      sign = ((i + j) % 2 == 0) ? 1 : -1;
-
-      // Interchanging rows and columns to get the
-      // transpose of the cofactor matrix
-      adj[j][i] = (sign) * (determinant(temp, N - 1));
-    }
-  }
-}
-
-// Function to calculate and store inverse, returns false if
-// matrix is singular
-bool R2Image::
-inverse(double A[N][N], double inverse[N][N])
-{
-  // Find determinant of A[][]
-  int det = determinant(A, N);
-  if (det == 0)
-  {
-    cout << "Singular matrix, can't find its inverse";
-    return false;
-  }
-
-  // Find adjoint
-  double adj[N][N];
-  adjoint(A, adj);
-
-  // Find Inverse using formula "inverse(A) = adj(A)/det(A)"
-  for (int i = 0; i < N; i++)
-    for (int j = 0; j < N; j++)
-      inverse[i][j] = adj[i][j] / float(det);
-
-  return true;
-}
 
 ////////////////////////////////////////////////////////////////////////
 // I/O Functions
