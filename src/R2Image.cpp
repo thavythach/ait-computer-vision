@@ -1066,33 +1066,13 @@ blendOtherImageHomography(R2Image * otherImage)
       printf("---H[%d]=%f\n", g, H[g]);
     }
   }
-  /*
 
-  std::vector<int> rIdx;
-  int rCtr = 0;
-  for (int i=0; i < 150; i++){
-    if(goodVectors[i] == 1){
-
-      printf("RIP: %f,%f,%f,%f\n", x[i], _x[i], y[i], _y[i]);
-
-      if ( isnan(x[i]) || isnan(_x[i]) || isnan(y[i]) || isnan(_y[i]) ){
-        printf("NAN!@$!@$!@$!@$!@$!@$$\n");
-      } else {
-        rIdx.push_back(i);
-        rCtr++;
-      }
-
-    }
-  }
-  */
-
-  // printf("maxInliers: %d , max: %d\n", maxInliers, rCtr);
 
   int gg = 0;
   for (int i=0; i< 150; i++){
     if (gvVectors[i] == 1) gg++;
   }
-  printf("asdfasdfasdfasdfasdf------ %d\n",gg);
+  printf("max------ %d\n",gg);
   
   double rx[gg];
   double rxx[gg];
