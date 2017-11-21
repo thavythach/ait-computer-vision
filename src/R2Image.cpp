@@ -355,7 +355,7 @@ Blur(double sigma)
   
   R2Image tempImage(*this);
   
-  int mode = 1; // 0 for gaussian, 1 for bilateral
+  int mode = 0; // 0 for gaussian, 1 for bilateral
   if (mode == 0){
     // Compute the Kernel (1D convolution)
     int size = sigma * 6 + 1;
@@ -445,9 +445,9 @@ Blur(double sigma)
             neighbour_x = x - (half - i);
             neighbour_y = y - (half - j);
             
-            double gi_dist = Pixel(neighbour_x,neighbour_y) - Pixel(x,y);
+            // double gi_dist = Pixel(neighbour_x,neighbour_y) - Pixel(x,y);
             double gi = exp(
-              -(pow(, 2)) 
+              -(pow(5, 2)) 
               / 
               (2 * pow(sigmaI, 2))) 
               / 
@@ -776,7 +776,7 @@ blendOtherImageTranslated(R2Image * otherImage)
     
     int minX = x;
     int minY = y;
-    double minSSD = 1500;
+    double minSSD = 150000;
     for (int swX=x-(width*win) ; swX <= x+(width*win) && swX <= width ; swX++){
       for (int swY=y-(height*win) ; swY <= y+(height*win) && swY <= height; swY++){
         
@@ -832,130 +832,6 @@ blendOtherImageTranslated(R2Image * otherImage)
 }
 
 void R2Image::
-computeRANSAC(int mode, double *x, double *y, double *_x, double *_y){
-  /**
-   * (x,y) set
-   * (x',y') set
-   * 
-   * Using this list of items, compute RANSAC the Homography way.
-   * */
-  const int numFeatures = 150;
-
-  // print all features
-  // for (int i=0; i < numFeatures; i++) printf("x,y=(%f,%f)\nx',y'=(%f,%f)\n\n", x[i],y[i],_x[i],_y[i]);
-
-  /** BELOW: all algorithms COMPUTING 2D homography **/
-  int goodVectors[150];
-  int featureInliers[150];
-  for (int i = 0; i < 150; i++)
-  {
-    goodVectors[i] = 0;
-    featureInliers[i] = 0;
-  }
-
-  int N = 1000;         // ESTIMATIONS
-  const int T_DIST = 5; // DISTANCE THRESHOLD
-  int maxInliers = 0;   // STARTING MAX_INLIER
-  int minPoints = 4;
-  double H[9];
-  int bestMatch[4];
-
-  // for every ith estimation
-  for (int i = 0; i < N; i++)
-  {
-
-    // randomly choose 4 correspondences
-    int rCorrs[minPoints] = {(rand() % 150),
-                             (rand() % 150),
-                             (rand() % 150),
-                             (rand() % 150)};
-
-    double xx[minPoints], yy[minPoints], _xx[minPoints], _yy[minPoints];
-
-    // prints chosen 4 correspondences values
-    for (int j = 0; j < minPoints; j++)
-    {
-      bestMatch[j] = rCorrs[j];
-      featureInliers[rCorrs[j]] = 0; // initializes initial amount of inliers.
-      printf("RANDS=[%d]\n", rCorrs[j]);
-      xx[j] = x[rCorrs[j]];
-      yy[j] = y[rCorrs[j]];
-      _xx[j] = _x[rCorrs[j]];
-      _yy[j] = _y[rCorrs[j]];
-    }
-
-    double hCurr[9]; // pass as reference
-
-    // compute the homography Hcurr by normalized DLT from 4 point pairs
-    HomographyEstimation(
-        xx,
-        yy,
-        _xx,
-        _yy,
-        4,
-        hCurr);
-
-    // sets initial BEST H.
-    // if ( i==0 ) std::copy(std::begin(hCurr), std::end(hCurr), std::begin(H));
-
-    // initialze number of inliers
-    int numInliers = 0;
-
-    // for each putative correspondence, calculate di (ssd) = d(x', hCurr*x)-d(X', H^-1*x)
-    for (int j = 0; j < numFeatures; j++)
-    {
-      goodVectors[j] = 0;
-
-      // matrix multiplication of 3x3 * 1*3 = 1*3
-
-      double hx[3];
-      int dCtr = 0;
-      for (int d = 0; d < 9; d += 3)
-      {
-        hx[dCtr] = (hCurr[d] * x[j]) + (hCurr[d + 1] * y[j]) + (hCurr[d + 2] * 1);
-        // printf("Result of Hx @ [%d]: %f\n\n", dCtr, hx[dCtr]);
-        dCtr++;
-      }
-
-      // convert homogenous coordinates to cartesian coordinates b/c of scale
-      double hx_X = hx[0] / hx[2];
-      double hx_Y = hx[1] / hx[2];
-
-      double diffX = _x[j] - hx_X;
-      double diffY = _y[j] - hx_Y;
-      double totalDifference = sqrt(diffX * diffX + diffY * diffY);
-
-      if (totalDifference < T_DIST)
-      {
-        featureInliers[rCorrs[0]]++;
-        goodVectors[j] = 1;
-        numInliers++;
-      }
-
-      // looks through to find vector with most inlliers
-      // turns this and its inliers green!!!
-      if (numInliers > maxInliers)
-      {
-        maxInliers = numInliers;
-
-        for (int k = 0; k < minPoints; k++)
-        {
-          bestMatch[k] = rCorrs[k];
-        }
-
-        for (int k = 0; k < 150; k++)
-        {
-          if (goodVectors[k] == 0)
-            this->line(x[k], _x[k], y[k], _y[k], 1, 0, 0);
-          else
-            this->line(x[k], _x[k], y[k], _y[k], 0, 0, 1);
-        }
-      }
-    }
-  }
-}
-
-void R2Image::
 blendOtherImageHomography(R2Image * otherImage)
 {
   
@@ -968,8 +844,8 @@ blendOtherImageHomography(R2Image * otherImage)
   int *dreams;
   dreams = image_one.Harris(2);
   R2Image image_three(*otherImage);
-  image_two.Grayscale();
-  image_three.Grayscale();
+  // image_two.Grayscale();
+  // image_three.Grayscale();
   std::vector<pair<double,double>> xy;
   std::vector<pair<double,double>> minxy;
   std::vector<double> differences;
@@ -987,7 +863,7 @@ blendOtherImageHomography(R2Image * otherImage)
 
     int minX = x;
     int minY = y;
-    double minSSD = 1500;
+    double minSSD = 15000000;
     for (int swX = x - (width * win); swX <= x + (width * win) && swX <= width; swX++)
     {
       for (int swY = y - (height * win); swY <= y + (height * win) && swY <= height; swY++)
@@ -1051,7 +927,7 @@ blendOtherImageHomography(R2Image * otherImage)
     } */
     
     // printf("--------------------Second Image: %d, %d\n", minX, minY);
-    printf("%d features found\n", ft + 1);
+    printf("fixlyfeup %d features found\n", ft + 1);
   }
 
   double x[150];
@@ -1076,13 +952,15 @@ blendOtherImageHomography(R2Image * otherImage)
   /** BELOW: all algorithms COMPUTING 2D homography **/
   int goodVectors[150];
   int featureInliers[150];
+  int gvVectors[150];
   for (int i = 0; i < 150; i++)
   {
     goodVectors[i] = 0;
     featureInliers[i] = 0;
+    gvVectors[i] = 0;
   }
 
-  int N = 1000;            // ESTIMATIONS
+  int est = 1000;            // ESTIMATIONS
   const int T_DIST = 5; // DISTANCE THRESHOLD
   int maxInliers = 0;  // STARTING MAX_INLIER
   int minPoints = 4;
@@ -1090,7 +968,7 @@ blendOtherImageHomography(R2Image * otherImage)
   int bestMatch[4];
 
   // for every ith estimation
-  for (int i = 0; i < N; i++)
+  for (int i = 0; i < est; i++)
   {
 
     // randomly choose 4 correspondences
@@ -1105,7 +983,6 @@ blendOtherImageHomography(R2Image * otherImage)
     for (int j = 0; j < minPoints; j++)
     {
       bestMatch[j] = rCorrs[j];
-      featureInliers[rCorrs[j]] = 0; // initializes initial amount of inliers.
       printf("RANDS=[%d]\n", rCorrs[j]);
       xx[j] = x[rCorrs[j]];
       yy[j] = y[rCorrs[j]];
@@ -1125,7 +1002,7 @@ blendOtherImageHomography(R2Image * otherImage)
         hCurr);
 
     // sets initial BEST H.
-    // if ( i==0 ) std::copy(std::begin(hCurr), std::end(hCurr), std::begin(H));
+    if ( i==0 ) std::copy(std::begin(hCurr), std::end(hCurr), std::begin(H));
 
     // initialze number of inliers
     int numInliers = 0;
@@ -1155,7 +1032,7 @@ blendOtherImageHomography(R2Image * otherImage)
       double totalDifference = sqrt(diffX * diffX + diffY * diffY);
 
       if (totalDifference < T_DIST){
-        featureInliers[rCorrs[0]]++;
+        featureInliers[j]++;
         goodVectors[j] = 1;
         numInliers++;
       }
@@ -1163,28 +1040,250 @@ blendOtherImageHomography(R2Image * otherImage)
       // looks through to find vector with most inlliers
       // turns this and its inliers green!!!
       if (numInliers > maxInliers){
+        std::copy(std::begin(hCurr), std::end(hCurr), std::begin(H));
         maxInliers = numInliers;
+
+        for (int gv=0; gv < 150; gv++){
+          gvVectors[gv] = goodVectors[gv];
+        }
 
         for (int k = 0; k < minPoints; k++)
         {
           bestMatch[k] = rCorrs[k];
         }
 
-        for (int k = 0; k < 150; k++)
+        /* for (int k = 0; k < 150; k++)
         {
           if (goodVectors[k] == 0)
             this->line(x[k], _x[k], y[k], _y[k], 1, 0, 0);
           else
             this->line(x[k], _x[k], y[k], _y[k], 0, 0, 1);
+        } */
+      }
+    }
+    // H = hCurr;
+    for (int g = 0; g < 9; g++){
+      printf("---H[%d]=%f\n", g, H[g]);
+    }
+  }
+  /*
+
+  std::vector<int> rIdx;
+  int rCtr = 0;
+  for (int i=0; i < 150; i++){
+    if(goodVectors[i] == 1){
+
+      printf("RIP: %f,%f,%f,%f\n", x[i], _x[i], y[i], _y[i]);
+
+      if ( isnan(x[i]) || isnan(_x[i]) || isnan(y[i]) || isnan(_y[i]) ){
+        printf("NAN!@$!@$!@$!@$!@$!@$$\n");
+      } else {
+        rIdx.push_back(i);
+        rCtr++;
+      }
+
+    }
+  }
+  */
+
+  // printf("maxInliers: %d , max: %d\n", maxInliers, rCtr);
+
+  int gg = 0;
+  for (int i=0; i< 150; i++){
+    if (gvVectors[i] == 1) gg++;
+  }
+  printf("asdfasdfasdfasdfasdf------ %d\n",gg);
+  
+  double rx[gg];
+  double rxx[gg];
+  double ry[gg];
+  double ryy[gg];
+
+  int ggCtr = 0.0;
+  for (int i=0; i < 150; i++){
+    if (gvVectors[i] == 1){
+
+      rx[ggCtr] = x[i];
+      rxx[ggCtr] = _x[i];
+      ry[ggCtr] = y[i];
+      ryy[ggCtr] = _y[i];
+      ggCtr++;
+    }
+  }  
+
+
+  double rH[9]; // refined H
+
+  HomographyEstimation(
+      rx,
+      ry,
+      rxx,
+      ryy,
+      gg,
+      rH
+  );
+
+  for (int i=0; i < 9; i++){
+    printf("(rmax: %d) - REFINNNNNNNNNNNNNNNNNNNNNNED H vs H: %f vs. %f\n",gg, rH[i], H[i]);
+  }
+
+
+  for (int i=0; i < width; i++){
+    for (int j=0; j < height; j++){
+
+      // printf("--------------------------------------(%d,%d)\n", i,j );
+      
+      double hx[3]; 
+      int dCtr = 0;
+      for (int d=0; d<9; d+=3){
+        hx[dCtr] = (rH[d] * i) + (rH[d + 1] * j) + (rH[d + 2] * 1);
+        // printf("Result of Hx @ [%d]: %f\n\n", dCtr, hx[dCtr]);
+        dCtr++;
+      }
+
+      double u = hx[0] / hx[2]; 
+      double v = hx[1] / hx[2];
+
+      // printf("======================UV(%f,%f)\n", u, v);
+
+      if ( u < 0|| v < 0 || u > width || v > height ){
+        // Pixel(i, j) = Pixel(i,j);
+        // printf("badddddddd pixel");
+      } else {
+        Pixel(i, j) = Pixel(i, j) * 0.5 + image_three.Pixel(u, v) * 0.5;
+      }
+    }
+  }
+  
+}
+
+template <class T>
+void R2Image::
+display(T A[N][N])
+{
+  for (int i = 0; i < N; i++)
+  {
+    for (int j = 0; j < N; j++)
+      cout << A[i][j] << " ";
+    cout << endl;
+  }
+}
+
+// Function to get cofactor of A[p][q] in temp[][]. n is current
+// dimension of A[][]
+void R2Image::
+  getCofactor(double A[N][N], double temp[N][N], int p, int q, int n)
+{
+  int i = 0, j = 0;
+
+  // Looping for each element of the matrix
+  for (int row = 0; row < n; row++)
+  {
+    for (int col = 0; col < n; col++)
+    {
+      //  Copying into temporary matrix only those element
+      //  which are not in given row and column
+      if (row != p && col != q)
+      {
+        temp[i][j++] = A[row][col];
+
+        // Row is filled, so increase row index and
+        // reset col index
+        if (j == n - 1)
+        {
+          j = 0;
+          i++;
         }
       }
     }
   }
-
-  // computeRANSAC( 0, x, y, _x, _y );
 }
 
+/* Recursive function for finding determinant of matrix.
+   n is current dimension of A[][]. */
+int R2Image::
+determinant(double A[N][N], int n)
+{
+  int D = 0; // Initialize result
 
+  //  Base case : if matrix contains single element
+  if (n == 1)
+    return A[0][0];
+
+  double temp[N][N]; // To store cofactors
+
+  int sign = 1; // To store sign multiplier
+
+  // Iterate for each element of first row
+  for (int f = 0; f < n; f++)
+  {
+    // Getting Cofactor of A[0][f]
+    getCofactor(A, temp, 0, f, n);
+    D += sign * A[0][f] * determinant(temp, n - 1);
+
+    // terms are to be added with alternate sign
+    sign = -sign;
+  }
+
+  return D;
+}
+
+// Function to get adjoint of A[N][N] in adj[N][N].
+void R2Image::
+adjoint(double A[N][N], double adj[N][N])
+{
+  if (N == 1)
+  {
+    adj[0][0] = 1;
+    return;
+  }
+
+  // temp is used to store cofactors of A[][]
+  int sign = 1;
+  double temp[N][N];
+
+  for (int i = 0; i < N; i++)
+  {
+    for (int j = 0; j < N; j++)
+    {
+      // Get cofactor of A[i][j]
+      getCofactor(A, temp, i, j, N);
+
+      // sign of adj[j][i] positive if sum of row
+      // and column indexes is even.
+      sign = ((i + j) % 2 == 0) ? 1 : -1;
+
+      // Interchanging rows and columns to get the
+      // transpose of the cofactor matrix
+      adj[j][i] = (sign) * (determinant(temp, N - 1));
+    }
+  }
+}
+
+// Function to calculate and store inverse, returns false if
+// matrix is singular
+bool R2Image::
+inverse(double A[N][N], double inverse[N][N])
+{
+  // Find determinant of A[][]
+  int det = determinant(A, N);
+  if (det == 0)
+  {
+    cout << "Singular matrix, can't find its inverse";
+    return false;
+  }
+
+  // Find adjoint
+  double adj[N][N];
+  adjoint(A, adj);
+
+  // Find Inverse using formula "inverse(A) = adj(A)/det(A)"
+  for (int i = 0; i < N; i++)
+    for (int j = 0; j < N; j++)
+      inverse[i][j] = adj[i][j] / float(det);
+
+  return true;
+}
 
 ////////////////////////////////////////////////////////////////////////
 // I/O Functions
