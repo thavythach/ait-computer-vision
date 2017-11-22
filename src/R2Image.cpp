@@ -633,6 +633,67 @@ line(int x0, int x1, int y0, int y1, float r, float g, float b)
 }
 
 void R2Image::
+Hmatrix(int N_input, double **N_features, double* h)
+{
+  printf("Begin Homography Estimation!!!\n");
+
+  // build the 2n x 9 matrix of equations
+  double **linEquations = dmatrix(1, 2 * N_input, 1, 9);
+
+  int ctr = 0;
+  for (int i = 1; i <= N_input * 2; i += 2)
+  {
+    printf("x,y=[%f,%f]...x',y'=[%f,%f]\n", N_features[ctr][0], N_features[ctr][1], N_features[ctr][2], N_features[ctr][3]);
+
+    /* 
+    e.g. numPoints = 4, 4*2 = 8 ... 1 -> 8
+    1 2,3 4,5 6,7 8
+    */
+    linEquations[i][1] = 0.0;
+    linEquations[i][2] = 0.0;
+    linEquations[i][3] = 0.0;
+    linEquations[i][4] = -1.0 * N_features[ctr][0];
+    linEquations[i][5] = -1.0 * N_features[ctr][1];
+    linEquations[i][6] = -1.0 * 1.0;
+    linEquations[i][7] = N_features[ctr][3] * N_features[ctr][0];
+    linEquations[i][8] = N_features[ctr][3] * N_features[ctr][1];
+    linEquations[i][9] = N_features[ctr][3] * 1.0;
+
+    linEquations[i + 1][1] = 1.0 * N_features[ctr][0];
+    linEquations[i + 1][2] = 1.0 * N_features[ctr][1];
+    linEquations[i + 1][3] = 1.0 * 1.0;
+    linEquations[i + 1][4] = 0.0;
+    linEquations[i + 1][5] = 0.0;
+    linEquations[i + 1][6] = 0.0;
+    linEquations[i + 1][7] = -N_features[ctr][2] * N_features[ctr][0];
+    linEquations[i + 1][8] = -N_features[ctr][2] * N_features[ctr][1];
+    linEquations[i + 1][9] = -N_features[ctr][2] * 1.0;
+
+    ctr++;
+  }
+
+  // compute the svd
+  double singularValues[10]; // 1..9
+  double **nullspaceMatrix = dmatrix(1, 9, 1, 9);
+  svdcmp(linEquations, N_input * 2, 9, singularValues, nullspaceMatrix);
+
+  // find the smallest singular value
+  int smallestIndex = 1;
+  for (int i = 2; i < 10; i++)
+    if (singularValues[i] < singularValues[smallestIndex])
+      smallestIndex = i;
+
+  // solution is the nullspace of the matrix, which is the column in V corresponding to the smallest singular value (which should be 0)
+  printf("Conic Coefficients...\n");
+  for (int i = 1; i < 10; i++)
+  {
+    printf("NULLSPACE MATRIX @ [i]=%d, [smallest idx]=%d, [Conic Coefficient]=%f\n", i, smallestIndex, nullspaceMatrix[i][smallestIndex]);
+    h[i - 1] = nullspaceMatrix[i][smallestIndex];
+    printf("added to h-matrix: %f\n", h[i - 1]);
+  }
+}
+
+void R2Image::
 HomographyEstimation(double *x, double *y, double *_x, double *_y, int numPoints, double* h){
   printf("Begin Homography Estimation!!!\n");
 
@@ -645,10 +706,7 @@ HomographyEstimation(double *x, double *y, double *_x, double *_y, int numPoints
 
     /* 
     e.g. numPoints = 4, 4*2 = 8 ... 1 -> 8
-    1 2 
-    3 4 
-    5 6 
-    7 8
+    1 2,3 4,5 6,7 8
     */
     linEquations[i][1] = 0.0;
     linEquations[i][2] = 0.0;
@@ -690,8 +748,6 @@ HomographyEstimation(double *x, double *y, double *_x, double *_y, int numPoints
     h[i-1] = nullspaceMatrix[i][smallestIndex];
     printf("added to h-matrix: %f\n", h[i-1]);
   }
-
-  
 }
 
 void R2Image::
@@ -700,6 +756,18 @@ blendOtherImageTranslated(R2Image * otherImage)
 	// find at least 100 features on this image, and another 100 on the "otherImage". Based on these,
 	// compute the matching translation (pixel precision is OK), and blend the translated "otherImage" 
   // into this image with a 50% opacity.
+
+  
+
+
+
+
+
+
+
+
+
+
 
   R2Image image_one(*this);
   R2Image image_two(*this);

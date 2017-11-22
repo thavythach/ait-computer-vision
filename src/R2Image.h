@@ -80,8 +80,8 @@ class R2Image {
   // further operations
   void blendOtherImageTranslated(R2Image * otherImage);
   void blendOtherImageHomography(R2Image * otherImage);
+  void Hmatrix(int N_input, double **N_features, double* h);
   void HomographyEstimation(double *x, double *y, double *_x, double *_y, int numPoints, double *h);
-
 
   // File reading/writing
   int Read(const char *filename);
