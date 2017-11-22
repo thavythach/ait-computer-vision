@@ -417,8 +417,6 @@ Blur(double sigma)
 void R2Image::
 Grayscale()
 {
-  R2Image tmp(*this);
-
   for (int x=0; x <width; x++){
     for (int y=0; y<height; y++){
 

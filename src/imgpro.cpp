@@ -37,6 +37,7 @@ static char options[] =
 "  -svdTest\n"
 "  -sobelX\n"
 "  -sobelY\n"
+"  -grayscale\n"
 "  -log\n"
 "  -harris <real:sigma>\n"
 "  -saturation <real:factor>\n"
@@ -179,15 +180,20 @@ main(int argc, char **argv)
       argv++, argc--;
       image->SobelY();
     }
-	else if (!strcmp(*argv, "-log")) {
+  else if (!strcmp(*argv, "-grayscale")){
+      argv++, argc--;
+      image->Grayscale();
+    }
+    else if (!strcmp(*argv, "-log"))
+    {
       argv++, argc--;
       image->LoG();
     }
-    else if (!strcmp(*argv, "-saturation")) {
-      CheckOption(*argv, argc, 2);
-      double factor = atof(argv[1]);
-      argv += 2, argc -= 2;
-      image->ChangeSaturation(factor);
+  else if (!strcmp(*argv, "-saturation")) {
+    CheckOption(*argv, argc, 2);
+    double factor = atof(argv[1]);
+    argv += 2, argc -= 2;
+    image->ChangeSaturation(factor);
     }
 	else if (!strcmp(*argv, "-harris")) {
       CheckOption(*argv, argc, 2);
