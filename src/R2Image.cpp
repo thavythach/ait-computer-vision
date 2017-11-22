@@ -426,14 +426,15 @@ Grayscale()
   }
 }
 
-int* R2Image::
-Harris(double sigma)
+void R2Image::
+Harris(double sigma, int N_random, double** N_features)
 {
   // Harris corner detector. Make use of the previously developed filters, such as the Gaussian blur filter
   // Output should be 50% grey at flat regions, white at corners and black/dark near edges
   
   printf("Grayscale Initiated!\n");
-  this->Grayscale();
+  R2Image tmp(*this);
+  tmp.Grayscale();
   printf("Grayscale Completed!\n");
   
   printf("Creating 3 Temporary Images (solX, solY, Ix_sq, Iy_sq, Ix_Iy) based off original image.\n");  
@@ -470,13 +471,12 @@ Harris(double sigma)
   double detected[width][height];
   double rmax = 0.0;
   printf("Initialization Successful - alpha set to (%f), detected to empty 2D array, rmax set to (%f)!\n", alpha, rmax);
-  static int features[300]; 
   
   printf("Begin computing the Harris Value and populate both rmax and detected 2D array!\n");
   for (int x=0; x < width; x++){
     for (int y=0; y < height; y++){
       // printf("x: %d, y: %d!\n", x,y);
-      Pixel(x,y) = 
+      tmp.Pixel(x,y) = 
       Ix_sq.Pixel( x,y ) * Iy_sq.Pixel( x,y ) - 
       Ix_Iy.Pixel( x,y ) * Ix_Iy.Pixel (x,y ) - 
       alpha *
@@ -488,11 +488,11 @@ Harris(double sigma)
       ;
       detected[x][y] = Pixel(x,y).Red(); // if you have grayscale it, all the rgb values are the same
       
-      if ( Pixel(x,y).Red() > rmax){
-        rmax = Pixel(x,y).Red();
+      if ( tmp.Pixel(x,y).Red() > rmax){
+        rmax = tmp.Pixel(x,y).Red();
       }
 
-      Pixel(x,y).Clamp();    
+      tmp.Pixel(x,y).Clamp();    
     }
   }
   
@@ -500,51 +500,67 @@ Harris(double sigma)
   
   printf("Begin Bruteforcing # of threshold beginning at 1.0 and ends at 0.0 every 0.10 decrementation.\n");
 
+  std::vector<pair<double,double>> features; 
+  int numFeatures = 0.0;
 
-  int features_to_find = 150;
-  int i=0;
-  int ft=0;
-  for (double threshold = 1.0; i != 150 && threshold >= 0.0; threshold -= 0.01){
+  // threshold outer
+  for (double threshold = 1.0; threshold >= 0.0; threshold -= 0.01){
+
+    // traverse image loop
     for (int x=0; x < width; x++){
       for (int y=0; y < height; y++){
+
+        // we found a feature so..... 
         if (detected[x][y] >= threshold * rmax &&
           detected[x][y] > detected[x-1][y-1] &&
           detected[x][y] > detected[x-1][y+1] &&
           detected[x][y] > detected[x+1][y-1] &&
           detected[x][y] > detected[x+1][y+1]
         ){
-          features[ft] = x;
-          features[ft+1] = y;
-          // printf("%f\n",features[i].Red());
-          ft+=2;
-          i++;                                  
+
+          // push feature to a vector and increment # of features
+          features.push_back( make_pair(x,y) );
+          numFeatures++;
+          
+          // look at window and detremine location of things
           for (int lx = -10; lx <= 10; lx++){
             for (int ly = -10; ly <= 10; ly++){
               int xCoord = std::max(0, std::min(x +lx, width-1));
               int yCoord = std::max(0, std::min(y +ly, height-1));
               detected[xCoord][yCoord] = 0;
               
-              int radius = (ly*ly) + (lx*lx);
-              if (radius <= 18 && radius >= 8){
-                Pixel(xCoord,yCoord) = R2Pixel(1,0,0,1);
-              }
             }
-          }
-          
-          
+          } 
         }
-        if (i==features_to_find){
-            break;
-        }
+      }    
     }
-    
+    printf("Found (%d) features for %.2f-- \n",numFeatures, threshold);
   }
-  printf("Found (%d) features for %.2f-- \n",i, threshold);
-  }
-  
-
   printf("Bruteforce Completed!\n");
-  return features;
+
+  printf("Number of Features in Image: %d\nRandom set of N Features shall be selected where N=%d\n", numFeatures, N_random);
+
+  for (int i=0; i < N_random; i++){
+    
+    int rand_i = (rand() % numFeatures);
+
+    N_features[i][0] = features.at( rand_i ).first; // x allocated
+    N_features[i][1] = features.at( rand_i ).second; // y allocated
+
+    for (int lx = -10; lx <= 10; lx++)
+    {
+      for (int ly = -10; ly <= 10; ly++)
+      {
+        int xCoord = std::max(0, std::min((int)N_features[i][0] + lx, width - 1));
+        int yCoord = std::max(0 , std::min((int)N_features[i][1] + ly, height - 1));
+
+        int radius = (ly * ly) + (lx * lx);
+        if (radius <= 18 && radius >= 8){
+          Pixel(xCoord, yCoord) = R2Pixel(1, 0, 0, 1);
+        }
+      }
+    }
+  }
 }
 
 
@@ -689,7 +705,7 @@ blendOtherImageTranslated(R2Image * otherImage)
   R2Image image_two(*this);
   // image_two.Grayscale();
   int* dreams; 
-  dreams = image_one.Harris(2);
+  // dreams = image_one.Harris(2); TODO FIX
   R2Image image_three(*otherImage);
   image_two.Grayscale();
   image_three.Grayscale();
@@ -773,7 +789,7 @@ blendOtherImageHomography(R2Image * otherImage)
   R2Image image_two(*this);
   // image_two.Grayscale();
   int *dreams;
-  dreams = image_one.Harris(2);
+  // dreams = image_one.Harris(2); TODO FIX
   R2Image image_three(*otherImage);
   // image_two.Grayscale();
   // image_three.Grayscale();

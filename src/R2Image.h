@@ -71,7 +71,7 @@ class R2Image {
   void SobelY();
   void LoG();
   void Blur(double sigma);
-  int* Harris(double sigma);
+  void Harris(double sigma, int N_random, double** N_features);
   void Sharpen(void);
   void Grayscale();
   void line(int x0, int x1, int y0, int y1, float r, float g, float b);

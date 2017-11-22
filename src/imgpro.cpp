@@ -39,7 +39,7 @@ static char options[] =
 "  -sobelY\n"
 "  -grayscale\n"
 "  -log\n"
-"  -harris <real:sigma>\n"
+"  -harris <real:sigma> <numfeatures>\n"
 "  -saturation <real:factor>\n"
 "  -brightness <real:factor>\n"
 "  -blur <real:sigma>\n"
@@ -196,10 +196,13 @@ main(int argc, char **argv)
     image->ChangeSaturation(factor);
     }
 	else if (!strcmp(*argv, "-harris")) {
-      CheckOption(*argv, argc, 2);
+      CheckOption(*argv, argc, 3);
       double sigma = atof(argv[1]);
-      argv += 2, argc -= 2;
-      image->Harris(sigma);
+      int N_random = atof(argv[2]);
+      double **N_features = new double *[N_random];
+      for (int i = 0; i < N_random; i++) N_features[i] = new double[N_random];
+      argv += 3, argc -= 3;
+      image->Harris(sigma, N_random, N_features);
     }
     else if (!strcmp(*argv, "-blur")) {
       CheckOption(*argv, argc, 2);
