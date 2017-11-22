@@ -354,7 +354,6 @@ LoG(void)
 }
 
 
-
 void R2Image::
 ChangeSaturation(double factor)
 {
@@ -370,142 +369,49 @@ void R2Image::
 Blur(double sigma)
 {
   // Gaussian blur of the image. Separable solution is preferred
-  /* 
-  uncomment to use homography estimation
-  int x[] = {0,1,1,0};
-  int y[] = {0,0,1,1};
-  int _x[] = {1,2,2,1};
-  int _y[] = {0,0,1,1};
-  int numPoints = 4;
-  HomographyEstimation( x, y, _x, _y, numPoints);
-  exit(0); */
-  
+  // Compute the Kernel (1D convolution)
+
   R2Image tempImage(*this);
   
-  int mode = 0; // 0 for gaussian, 1 for bilateral
-  if (mode == 0){
-    // Compute the Kernel (1D convolution)
-    int size = sigma * 6 + 1;
-    int cWidth = sigma * 3; // 3 one ach side
-    double kernel[size];
+  int size = sigma * 6 + 1;
+  int cWidth = sigma * 3; 
+  double kernel[size];
 
-    // std::cout << size;
+  double weights = 0.0;
+  for (int i = -cWidth; i <= cWidth; i++){
+    int idx = i + cWidth;
+    kernel[idx] = exp(-(i * i) / sigma * sigma * 2 / (M_PI * sigma * sigma * 2));
+    weights += kernel[idx];
+  }
 
-    double weights = 0.0;
-    for (int i = -cWidth; i <= cWidth; i++)
-    {
-      int idx = i + cWidth;
-      kernel[idx] = exp(-(i * i) / sigma * sigma * 2 / (M_PI * sigma * sigma * 2));
-      // std::cout << kernel[idx] << "\n";
-      weights += kernel[idx];
-    }
+  // normalize the kernel
+  double kernel_sum = 0.0;
+  for (int i = 0; i < size; i++){
+    kernel[i] /= weights;
+    kernel_sum += kernel[i];
+  }
 
-    // std::cout << "\n Total Weights: " << weights;
-
-    // normalize the kernel
-    double kernel_sum = 0.0;
-    for (int i = 0; i < size; i++)
-    {
-      kernel[i] /= weights;
-      // std :: cout << kernel[i] << "\n";
-
-      kernel_sum += kernel[i];
-    }
-
-    // std::cout << kernel_sum;
-
-    /* separable linear filters */
-
-    // y - direction
-    for (int y = cWidth; y < height - cWidth; y++)
-    {
-      for (int x = 0; x < width; x++)
-      {
-
-        // local vars
-        R2Pixel *val = new R2Pixel();
-
-        for (int ly = -cWidth; ly <= cWidth; ly++)
-        {
-          *val += Pixel(x, y + ly) * kernel[ly + cWidth];
-          // printf("%d -%d\n",x,y);
-        }
-        tempImage.Pixel(x, y) = *val;
-        // tempImage.Pixel(x,y).Clamp();
+  // y - direction
+  for (int y = cWidth; y < height - cWidth; y++){
+    for (int x = 0; x < width; x++){
+      R2Pixel *val = new R2Pixel();
+      for (int ly = -cWidth; ly <= cWidth; ly++){
+        *val += Pixel(x, y + ly) * kernel[ly + cWidth];
       }
-    }
-
-    // x - direction
-    for (int y = 0; y < height; y++)
-    {
-      for (int x = cWidth; x < width - cWidth; x++)
-      {
-
-        // local vars
-        R2Pixel *val = new R2Pixel();
-
-        for (int lx = -cWidth; lx <= cWidth; lx++)
-        {
-          *val += tempImage.Pixel(x + lx, y) * kernel[lx + cWidth];
-        }
-        Pixel(x, y) = *val;
-        // Pixel(x,y).Clamp();
-      }
-    }
-  } else if (mode == 1){
-
-    int diameter = 5.0;
-    double sigmaI = 12.0;
-    double sigmaS = 16.0;
-
-    for (int x=0; x<width; x++){
-      for (int y=0; y<height; y++){
-
-        R2Pixel *val = new R2Pixel();
-        double wP = 0.0;
-        int neighbour_x = 0.0;
-        int neighbour_y = 0.0;
-        int half = diameter/2;
-
-        for (int i=0; i < diameter; i++){
-          for (int j=0; j < diameter; j++){
-            neighbour_x = x - (half - i);
-            neighbour_y = y - (half - j);
-            
-            // double gi_dist = Pixel(neighbour_x,neighbour_y) - Pixel(x,y);
-            double gi = exp(
-              -(pow(5, 2)) 
-              / 
-              (2 * pow(sigmaI, 2))) 
-              / 
-              (2 * M_PI * pow(sigmaI, 2)
-            );
-
-            double gs_dist = sqrt(pow(x - neighbour_x,2) + pow(y-neighbour_y,2));
-            double gs = exp(
-              -(pow(gs_dist, 2)) 
-              / 
-              (2 * pow(sigmaS, 2))) 
-              / 
-              (2 * M_PI * pow(sigmaS, 2)
-            );
-
-            double w = gi * gs;
-            *val += Pixel(x,y) * w;
-            wP = wP + w;
-          }
-        }
-
-        *val /= wP;
-        
-        tempImage.Pixel(x,y) = *val;
-        
-      }
+      tempImage.Pixel(x, y) = *val;
     }
   }
 
-  
- 
+  // x - direction
+  for (int y = 0; y < height; y++){
+    for (int x = cWidth; x < width - cWidth; x++){
+      R2Pixel *val = new R2Pixel();
+      for (int lx = -cWidth; lx <= cWidth; lx++){
+        *val += tempImage.Pixel(x + lx, y) * kernel[lx + cWidth];
+      }
+      Pixel(x, y) = *val;
+    }
+  } 
 }
 
 void R2Image::
