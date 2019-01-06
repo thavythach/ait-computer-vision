@@ -500,7 +500,7 @@ Harris(double sigma, int N_random, double** N_features)
   
   printf("Begin Bruteforcing # of threshold beginning at 1.0 and ends at 0.0 every 0.10 decrementation.\n");
 
-  std::vector<pair<double,double>> features; 
+  std::vector<pair<double,double> > features; 
   int numFeatures = 0.0;
 
   // threshold outer
@@ -861,8 +861,8 @@ blendOtherImageHomography(R2Image * otherImage)
   R2Image image_three(*otherImage);
   // image_two.Grayscale();
   // image_three.Grayscale();
-  std::vector<pair<double,double>> xy;
-  std::vector<pair<double,double>> minxy;
+  std::vector<pair<double,double> > xy;
+  std::vector<pair<double,double> > minxy;
   std::vector<double> differences;
   
   int ft = 0;
@@ -962,17 +962,18 @@ blendOtherImageHomography(R2Image * otherImage)
   int minPoints = 4;
   double H[9];
   int bestMatch[4];
+  int rCorrs[minPoints];
 
   // for every ith estimation
   for (int i = 0; i < est; i++)
   {
 
     // randomly choose 4 correspondences
-    int rCorrs[minPoints] = {(rand() % 150),
-                             (rand() % 150),
-                             (rand() % 150),
-                             (rand() % 150)};
-
+    rCorrs[0] = (rand() % 150);
+    rCorrs[1] = (rand() % 150);
+    rCorrs[2] = (rand() % 150);
+    rCorrs[3] = (rand() % 150);
+                             
     double xx[minPoints], yy[minPoints], _xx[minPoints], _yy[minPoints];
 
     // prints chosen 4 correspondences values
